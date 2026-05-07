@@ -101,8 +101,8 @@ If structure contradicts objective → flag immediately as critical conflict.
 
 ---
 
-## Step 2 — Internal Analysis (Do not show)
-
+## Step 2 — Internal Analysis (Internal Processing)
+Perform these checks to prepare the output for Step 3:
 1. Full section inventory (from Step 0)
 2. Order logic vs detected objective
 3. Emotional entry point quality

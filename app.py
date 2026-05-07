@@ -1,6 +1,7 @@
 import os
 import requests
 import re
+import base64
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 app = FastAPI()
 
@@ -28,9 +30,9 @@ class AnalysisRequest(BaseModel):
     input: str
     skill_type: str
     context: Optional[str] = None
+    image: Optional[str] = None # Base64 data string
 
 def is_valid_url(text: str):
-    # Regex per domini (es: magghyko.com, www.sito.it, https://...)
     pattern = re.compile(
         r'^(https?:\/\/)?' 
         r'(([a-z0-9-]+\.)+[a-z]{2,})' 
@@ -48,11 +50,9 @@ def scrape_site(url_input: str):
     }
 
     try:
-        print(f"🌐 TENTATIVO SCRAPING: {url}")
         response = requests.get(url, headers=headers, timeout=15)
         response.raise_for_status()
     except Exception as e:
-        print(f"⚠️ Errore: {str(e)}. Provo variante...")
         if 'www.' not in url:
             url = url.replace('https://', 'https://www.')
         else:
@@ -75,54 +75,124 @@ def scrape_site(url_input: str):
 
 @app.post("/analyze")
 async def analyze(request: AnalysisRequest):
-    print(f"📩 RICHIESTA RICEVUTA: Skill={request.skill_type}, Context={request.context or 'Generico'}")
-    
     skill_map = {"copy": "skill.md", "structure": "skill-2.md", "aesthetic": "skill-3.md", "recap": "skill-4.md"}
     skill_file = skill_map.get(request.skill_type, "skill.md")
     
     try:
         with open(skill_file, "r", encoding="utf-8") as f:
-            skill_prompt = f.read()
+            base_skill_prompt = f.read()
         
+        # PREPEND CRITICAL RULES TO SYSTEM PROMPT
+        critical_rules = (
+            "### CRITICAL OPERATING RULES ###\n"
+            "1. RESPONSE LANGUAGE: You MUST respond in the SAME LANGUAGE as the source material provided. "
+            "If the website or text is in ENGLISH, you MUST output your entire analysis in ENGLISH. "
+            "If it is in ITALIAN, you MUST output in ITALIAN.\n"
+        )
+        if request.image:
+            critical_rules += "2. VISION ENABLED: A screenshot IS PROVIDED. You MUST use it to perform the analysis. Do NOT say visual access is limited. You have full visibility.\n"
+        
+        skill_prompt = critical_rules + "\n" + base_skill_prompt
+
         if request.context and request.context.strip():
             skill_prompt += f"\n\n--- ACTIVE CONTEXT LAYER ---\nTarget Context: {request.context}\n----------------------------"
 
-        # LOGICA URL
-        if is_valid_url(request.input):
-            print(f"🔍 URL RILEVATO: {request.input}")
-            scraped_data, error = scrape_site(request.input)
-            if error:
-                return {"status": "error", "message": f"Errore lettura sito. Copia-incolla il testo qui sotto.\n(Dettaglio: {error})"}
-            content_to_analyze = f"ANALISI SITO: {request.input}\n\nCONTENUTO ESTRATTO:\n{scraped_data}"
-        else:
-            print("📝 TESTO SEMPLICE RILEVATO")
-            content_to_analyze = f"CONTENUTO DA ANALIZZARE:\n\n{request.input}"
+        content_to_analyze = ""
+        if request.input:
+            if is_valid_url(request.input):
+                scraped_data, error = scrape_site(request.input)
+                if not error:
+                    content_to_analyze = f"SOURCE MATERIAL (WEBSITE SCRAPE):\nURL: {request.input}\n\nCONTENT:\n{scraped_data}"
+                else:
+                    content_to_analyze = f"SOURCE MATERIAL: URL {request.input} (Scraping failed, use screenshot if available)."
+            else:
+                content_to_analyze = f"SOURCE MATERIAL (TEXT):\n\n{request.input}"
+
+        # Determine language for enforcement (simple detection)
+        # If input has common Italian words, assume Italian, else English
+        is_it = any(word in request.input.lower() for word in [" il ", " la ", " di ", " per ", " un ", " che ", " è ", " sono "])
+        lang_name = "ITALIAN" if is_it else "ENGLISH"
+        
+        # Simple language marker at the start of the skill prompt
+        skill_prompt = f"[LANGUAGE: {lang_name}]\n\n" + skill_prompt
 
         if not GROQ_API_KEY:
-            return {"status": "error", "message": "GROQ_API_KEY mancante nel .env"}
+            return {"status": "error", "message": "GROQ_API_KEY missing"}
 
-        headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        payload = {
-            "model": "openai/gpt-oss-120b",
-            "messages": [
-                {"role": "system", "content": skill_prompt},
-                {"role": "user", "content": content_to_analyze}
-            ],
-            "temperature": 0.6
-        }
-        
-        print(f"⚡ ENGINE: GPT-OSS 120B (via Groq) in azione per Skill {request.skill_type}...")
-        res = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers)
-        res_json = res.json()
-        
-        if res.status_code != 200:
-            return {"status": "error", "message": res_json.get("error", {}).get("message", "API Error")}
+        if request.image and request.skill_type == "aesthetic":
+            # CHAINED VISION: Use Moondream to describe, then Groq to analyze
+            url_ollama = "http://localhost:11434/api/generate"
             
-        analysis = res_json["choices"][0]["message"]["content"]
-        return {"status": "success", "analysis": analysis}
+            img_data = request.image.split(",")[1] if "," in request.image else request.image
+            
+            # 1. Get a raw visual description from Moondream
+            visual_description_prompt = (
+                "ACT AS A VISUAL SENSOR. Describe this website screenshot for a Senior UX Strategist. "
+                "List specific details about: "
+                "1. Dominant colors and accent colors. "
+                "2. Typography style (professional, creative, etc.). "
+                "3. Visual hierarchy (what stands out first?). "
+                "4. Image style (real people, stock, illustrations). "
+                "5. Overall aesthetic quality (High, Medium, Low) and vibe."
+            )
+            
+            payload_ollama = {
+                "model": "moondream",
+                "prompt": visual_description_prompt,
+                "images": [img_data],
+                "stream": False
+            }
+            
+            try:
+                # Get visual cues
+                res_v = requests.post(url_ollama, json=payload_ollama, timeout=120)
+                visual_cues = res_v.json().get("response", "Visual access limited.")
+                
+                # 2. Feed visual cues + text to Groq for the full analysis
+                combined_content = (
+                    f"VISUAL CUES FROM SCREENSHOT:\n{visual_cues}\n\n"
+                    f"SOURCE MATERIAL (TEXT):\n{content_to_analyze}"
+                )
+                
+                headers_groq = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+                payload_groq = {
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [
+                        {"role": "system", "content": skill_prompt},
+                        {"role": "user", "content": combined_content}
+                    ],
+                    "temperature": 0.6
+                }
+                
+                res_g = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload_groq, headers=headers_groq)
+                analysis = res_g.json()["choices"][0]["message"]["content"]
+                return {"status": "success", "analysis": analysis}
+                
+            except Exception as e:
+                return {"status": "error", "message": f"Vision Chain Error: {str(e)}"}
+
+        else:
+            # Use GROQ API for text-only tasks
+            model = "llama-3.3-70b-versatile"
+            messages = [{"role": "system", "content": skill_prompt}, {"role": "user", "content": content_to_analyze or "Perform analysis based on available context."}]
+
+            headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+            payload = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0.6
+            }
+            
+            res = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers)
+            res_json = res.json()
+            
+            if res.status_code != 200:
+                return {"status": "error", "message": res_json.get("error", {}).get("message", "Groq API Error")}
+                
+            analysis = res_json["choices"][0]["message"]["content"]
+            return {"status": "success", "analysis": analysis}
 
     except Exception as e:
-        print(f"❌ ERRORE CRITICO: {str(e)}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/")

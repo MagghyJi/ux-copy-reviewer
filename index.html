@@ -3,343 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skilled Reviewer | UX & Conversion Diagnostic</title>
+    <title>Skilled Reviewer</title>
+    
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
-    <style>
-        /* Import Intel One Mono via CDN */
-        @import url('https://fonts.cdnfonts.com/css/intel-one-mono');
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.cdnfonts.com/css/intel-one-mono" rel="stylesheet">
+    
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-        :root {
-            --bg-color: #D5E5D8;
-            --card-bg: #2B372A;
-            --black: #131613;
-            --accent: #87F32E;
-            --text-dark: #344027;
-            --gradient-run: linear-gradient(266.19deg, #4E8D1B -10.11%, #87F32E 88.63%);
-            --font-title: 'Inter', sans-serif;
-            --font-mono: 'Intel One Mono', monospace;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            font-family: var(--font-mono);
-            font-weight: 500;
-            color: var(--text-dark);
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 64px 96px;
-        }
-
-        .container {
-            width: 1248px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 64px;
-        }
-
-        /* Header Section */
-        header {
-            width: 738px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            gap: 11px;
-        }
-
-        h1 {
-            font-family: var(--font-title);
-            font-weight: 800;
-            font-size: 80px;
-            line-height: 97px;
-            color: var(--text-dark);
-        }
-
-        .subtitle {
-            font-size: 24px;
-            line-height: 33px;
-            color: var(--text-dark);
-        }
-
-        /* Main Content Grid */
-        main {
-            display: flex;
-            flex-direction: row;
-            gap: 64px;
-            width: 100%;
-            align-items: flex-start;
-        }
-
-        /* Sidebar Section */
-        .sidebar {
-            width: 440px;
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 32px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .label-uppercase {
-            font-family: var(--font-title);
-            font-weight: 700;
-            font-size: 16px;
-            text-transform: uppercase;
-            color: var(--accent);
-        }
-
-        .skill-selector {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .skill-btn {
-            width: 100%;
-            height: 42px;
-            background: var(--black);
-            border: 0.5px solid var(--accent);
-            border-radius: 8px;
-            color: var(--accent);
-            font-family: var(--font-mono);
-            font-size: 16px;
-            padding: 10px;
-            cursor: pointer;
-            text-align: left;
-            transition: all 0.2s ease;
-        }
-
-        .skill-btn.active {
-            background: var(--accent);
-            color: var(--black);
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .context-input {
-            width: 100%;
-            height: 40px;
-            background: var(--black);
-            border: 0.5px solid rgba(135, 243, 46, 0.5);
-            border-radius: 8px;
-            color: var(--accent);
-            font-family: var(--font-mono);
-            font-size: 14px;
-            padding: 10px;
-            outline: none;
-        }
-
-        .textarea-box {
-            width: 100%;
-            height: 195px;
-            background: var(--black);
-            border: 0.5px solid var(--accent);
-            border-radius: 8px;
-            color: var(--accent);
-            font-family: var(--font-mono);
-            font-size: 14px;
-            padding: 15px;
-            resize: none;
-            outline: none;
-        }
-
-        .textarea-box::placeholder {
-            color: rgba(135, 243, 46, 0.6);
-        }
-
-        .btn-run {
-            width: 100%;
-            height: 54px;
-            background: var(--gradient-run);
-            border: 0.5px solid var(--accent);
-            border-radius: 8px;
-            font-family: var(--font-mono);
-            font-weight: 500;
-            font-size: 16px;
-            color: var(--black);
-            cursor: pointer;
-            transition: transform 0.1s ease;
-        }
-
-        .btn-run:active {
-            transform: scale(0.98);
-        }
-
-        .status-msg {
-            font-size: 12px;
-            text-align: center;
-            color: var(--accent);
-            margin-top: 8px;
-            min-height: 17px;
-        }
-
-        /* Analysis Area */
-        .analysis-area {
-            width: 744px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .analysis-card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 32px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .badge-skill {
-            background: rgba(135, 243, 46, 0.3);
-            border-radius: 100px;
-            padding: 4px 16px;
-            font-family: var(--font-title);
-            font-weight: 700;
-            font-size: 12px;
-            color: var(--accent);
-            text-transform: uppercase;
-        }
-
-        .badge-status {
-            font-family: var(--font-title);
-            font-weight: 700;
-            font-size: 12px;
-            color: var(--accent);
-            text-transform: uppercase;
-        }
-
-        .progress-container {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-        }
-
-        .loading-text {
-            font-size: 14px;
-            color: var(--accent);
-            width: 95px;
-        }
-
-        .progress-bar-bg {
-            flex-grow: 1;
-            height: 4px;
-            background: rgba(135, 243, 46, 0.1);
-            position: relative;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background: var(--accent);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
-        /* Result Display Styles */
-        .result-content {
-            color: var(--accent);
-            line-height: 1.6;
-        }
-
-        .result-content h3, .result-content h4 {
-            color: #fff;
-            margin-bottom: 12px;
-            font-family: var(--font-title);
-        }
-
-        .result-content blockquote {
-            background: var(--black);
-            padding: 15px;
-            border-left: 4px solid var(--accent);
-            margin: 15px 0;
-            font-style: italic;
-        }
-
-        .hidden {
-            display: none;
-        }
-    </style>
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="container">
+    <div class="app-wrapper">
         <header>
             <h1>Skilled Reviewer</h1>
-            <div class="subtitle">For website clarity, trust and conversion friction</div>
+            <p class="subtitle">For website clarity, trust and conversion friction</p>
         </header>
 
         <main>
-            <!-- Left Side: Selection & Inputs -->
-            <section class="sidebar">
-                <div class="label-uppercase">Select expert</div>
-                
-                <div class="skill-selector">
-                    <button class="skill-btn active" data-skill="copy">Skill 1: Copy</button>
-                    <button class="skill-btn" data-skill="structure">Skill 2: Structure</button>
-                    <button class="skill-btn" data-skill="aesthetic">Skill 3: Visual</button>
-                    <button class="skill-btn" data-skill="recap">Skill 4: Recap</button>
-                </div>
-
-                <div class="input-group">
-                    <div class="label-uppercase" style="font-size: 12px;">Specific Context (Optional)</div>
-                    <input type="text" id="contextInput" class="context-input" placeholder="e.g. Psychologists, Therapists...">
+            <!-- Sidebar (Frame 36230) -->
+            <aside class="sidebar">
+                <div class="sidebar-inner">
                     
-                    <div class="label-uppercase" style="font-size: 12px;">Source</div>
-                    <textarea id="userInput" class="textarea-box" placeholder="Insert url, text or screen"></textarea>
-                </div>
-
-                <div class="action-group">
-                    <button id="runBtn" class="btn-run">Run Expert</button>
-                    <div id="statusMsg" class="status-msg"></div>
-                </div>
-            </section>
-
-            <!-- Right Side: Progress & Analysis -->
-            <section class="analysis-area">
-                
-                <!-- Progress Card (Visible during loading) -->
-                <div id="progressCard" class="analysis-card hidden">
-                    <div class="card-header">
-                        <div class="badge-skill" id="currentSkillBadge">Skill 1</div>
-                        <div class="badge-status">Wait for the expert to generate the analysis</div>
+                    <!-- Select Expert (Frame 36244) -->
+                    <div class="control-group">
+                        <span class="section-label">Select Expert</span>
+                        <div class="expert-list">
+                            <button class="expert-btn active" data-skill="copy">Skill 1: Copy</button>
+                            <button class="expert-btn" data-skill="structure">Skill 2: Structure</button>
+                            <button class="expert-btn" data-skill="aesthetic">Skill 3: Visual</button>
+                            <button class="expert-btn" data-skill="recap">Skill 4: Recap</button>
+                        </div>
                     </div>
-                    <div class="progress-container">
-                        <div class="loading-text" id="percentText">loading 00%</div>
-                        <div class="progress-bar-bg">
-                            <div id="progressBarFill" class="progress-bar-fill"></div>
+
+                    <!-- Input Section (Frame 36228) -->
+                    <div class="expert-list" style="gap: 36px;">
+                        
+                        <!-- Source Input (Frame 36245) -->
+                        <div class="control-group">
+                            <span class="section-label">Source Input</span>
+                            <div class="drop-zone" id="dropZone">
+                                <textarea id="userInput" placeholder="Insert url, text or screen"></textarea>
+                                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                                <div id="imagePreview" class="image-preview-bar hidden">
+                                    <span id="fileName">image.png</span>
+                                    <span class="remove-img" id="removeImg">Remove</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Context Layer (Frame 36243) -->
+                        <div class="control-group">
+                            <span class="section-label">Context Layer</span>
+                            <input type="text" id="contextInput" class="text-input" placeholder="e.g. Psychologist, Coach, Counselor">
+                        </div>
+
+                    </div>
+
+                    <!-- Action Zone (Frame 36227) -->
+                    <div class="action-zone">
+                        <button id="runBtn" class="btn-primary">Run Expert</button>
+                        <p id="statusMsg" class="status-bar"></p>
+                    </div>
+
+                </div>
+            </aside>
+
+            <!-- Content Area (Frame 36240) -->
+            <section class="content-area">
+                
+                <!-- Progress Card (Frame 36231) -->
+                <div id="progressCard" class="card hidden">
+                    <div class="card-header">
+                        <span class="badge" id="currentSkillBadge">Skill 2</span>
+                        <span class="status-label">Wait for the expert to generate the analysis</span>
+                    </div>
+                    <div class="progress-info">
+                        <span class="loading-text" id="percentText">loading 07%</span>
+                        <div class="progress-track">
+                            <div id="progressBarFill" class="progress-fill"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Analysis Result Card -->
-                <div id="resultCard" class="analysis-card hidden">
+                <!-- Result Card (Frame 36232) -->
+                <div id="resultCard" class="card hidden">
                     <div class="card-header">
-                        <div class="badge-skill" id="resultSkillBadge">Skill 1</div>
-                        <div class="badge-status" id="resultScoreBadge">OVERALL SCORE __</div>
+                        <span class="badge" id="resultSkillBadge">Skill 2</span>
+                        <span class="status-label" id="resultScoreBadge">Overall Score __</span>
                     </div>
-                    <div class="label-uppercase" style="font-size: 14px;">Analysis text</div>
-                    <div id="analysisResult" class="result-content">
+                    
+                    <span class="analysis-label">Analysis text</span>
+                    
+                    <div id="analysisResult" class="analysis-output">
                         <!-- Result HTML will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="card">
+                    <div style="text-align: center; width: 100%; color: var(--accent-lime); opacity: 0.6;">
+                        <p>Analysis will appear here.</p>
                     </div>
                 </div>
 
