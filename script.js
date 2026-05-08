@@ -8,9 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const dropZone = document.getElementById('dropZone');
     const imageInput = document.getElementById('imageInput');
-    const imagePreview = document.getElementById('imagePreview');
-    const fileName = document.getElementById('fileName');
-    const removeImg = document.getElementById('removeImg');
+    const imageContainer = document.getElementById('imageContainer');
+    const imageList = document.getElementById('imageList');
 
     const emptyState = document.getElementById('emptyState');
     const progressCard = document.getElementById('progressCard');
@@ -26,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let selectedSkill = 'copy';
     let analysisHistory = {};
-    let selectedImageData = null;
+    let selectedImagesData = []; // Array for multiple images
 
     // Expert Selection Logic
     expertBtns.forEach(btn => {
@@ -35,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             selectedSkill = btn.dataset.skill;
             
-            // Show history immediately if available
             if (analysisHistory[selectedSkill]) {
                 const skillName = {
                     'copy': 'Skill 1', 'structure': 'Skill 2', 'aesthetic': 'Skill 3', 'recap': 'Skill 4'
@@ -78,10 +76,11 @@ document.addEventListener('DOMContentLoaded', () => {
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
-        const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) {
-            handleImageFile(file);
-        }
+        Array.from(e.dataTransfer.files).forEach(file => {
+            if (file && file.type.startsWith('image/')) {
+                handleImageFile(file);
+            }
+        });
     });
 
     userInput.addEventListener('paste', (e) => {
@@ -97,18 +96,38 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleImageFile(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            selectedImageData = e.target.result;
-            fileName.innerText = file.name;
-            imagePreview.classList.remove('hidden');
+            selectedImagesData.push(e.target.result);
+            renderThumbnails();
         };
         reader.readAsDataURL(file);
     }
 
-    removeImg.addEventListener('click', () => {
-        selectedImageData = null;
-        imagePreview.classList.add('hidden');
-        imageInput.value = '';
-    });
+    function renderThumbnails() {
+        imageList.innerHTML = '';
+        if (selectedImagesData.length > 0) {
+            imageContainer.classList.remove('hidden');
+            selectedImagesData.forEach((data, index) => {
+                const item = document.createElement('div');
+                item.className = 'image-item';
+                item.innerHTML = `
+                    <img src="${data}" alt="Thumbnail">
+                    <div class="remove-img-btn" data-index="${index}">×</div>
+                `;
+                imageList.appendChild(item);
+            });
+
+            // Re-attach removal listeners
+            document.querySelectorAll('.remove-img-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = parseInt(e.target.dataset.index);
+                    selectedImagesData.splice(idx, 1);
+                    renderThumbnails();
+                });
+            });
+        } else {
+            imageContainer.classList.add('hidden');
+        }
+    }
 
     // Progress Bar Animation
     function animateProgress(duration) {
@@ -137,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = userInput.value.trim();
         const context = contextInput.value.trim();
 
-        if (!input && !selectedImageData) {
+        if (!input && selectedImagesData.length === 0) {
             statusMsg.innerText = "Error: Input required";
             return;
         }
@@ -152,16 +171,15 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMsg.innerText = `${skillName} is now running`;
         currentSkillBadge.innerText = skillName;
         
-        const progressTimer = animateProgress(5000);
+        const progressTimer = animateProgress(selectedImagesData.length > 1 ? 8000 : 5000);
         
-        // Auto-scroll to results area
         progressCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         try {
             let finalInput = input;
             if (selectedSkill === 'recap') {
                 const historyText = Object.entries(analysisHistory)
-                    .map(([skill, result]) => `--- ANALYSIS ${skill.toUpperCase()} ---\n${result.substring(0, 2500)}`) // Truncate to save tokens
+                    .map(([skill, result]) => `--- ANALYSIS ${skill.toUpperCase()} ---\n${result.substring(0, 2500)}`)
                     .join('\n\n');
                 finalInput = `HISTORY OF PREVIOUS ANALYSES:\n${historyText}\n\nURL/SITE: ${input}`;
             }
@@ -173,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     input: finalInput, 
                     skill_type: selectedSkill,
                     context: context,
-                    image: selectedImageData
+                    images: selectedImagesData // Send array of images
                 })
             });
 
@@ -187,10 +205,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     progressCard.classList.add('hidden');
                     resultCard.classList.remove('hidden');
-                    
                     resultSkillBadge.innerText = skillName;
                     
-                    // Extremely resilient Score Regex
                     const scoreMatch = data.analysis.match(/(?:Score|Punteggio|Rating|Valutazione).*?(\d+)\s*\/\s*100/i) || 
                                      data.analysis.match(/(?:Score|Punteggio|Rating|Valutazione):\s*\*?\*?(\d+)/i);
                                      
@@ -221,40 +237,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function formatAnalysis(text) {
         if (!text) return "";
-
-        // 1. Clean up
         let cleanText = text.trim().replace(/\r\n/g, '\n');
-
-        // 2. Split by major headers to group by section
         const parts = cleanText.split(/^(?=#+ )/gm);
         
         return parts.map(part => {
             if (!part.trim()) return "";
-
-            // Separate header from content
             let headerMatch = part.match(/^(#+ .*)\n([\s\S]*)/);
             let headerHtml = "";
             let content = part;
-
             if (headerMatch) {
                 const headerText = headerMatch[1].replace(/#+\s*/, '');
                 headerHtml = `<h3>${headerText}</h3>`;
                 content = headerMatch[2];
             }
-
-            // Use marked.js for proper markdown formatting including tables
             let formattedContent = content.trim() ? marked.parse(content.trim()) : "";
-
             if (!formattedContent && !headerHtml) return "";
-            
             const contentHtml = formattedContent ? `<div class="result-box markdown-body">${formattedContent}</div>` : "";
-
-            return `
-                <div class="analysis-section">
-                    ${headerHtml}
-                    ${contentHtml}
-                </div>
-            `;
+            return `<div class="analysis-section">${headerHtml}${contentHtml}</div>`;
         }).join('\n');
     }
 });
