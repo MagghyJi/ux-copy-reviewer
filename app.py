@@ -161,7 +161,7 @@ async def analyze(request: AnalysisRequest):
                         {"role": "system", "content": skill_prompt},
                         {"role": "user", "content": combined_content}
                     ],
-                    "temperature": 0.6
+                    "temperature": 0
                 }
                 
                 res_g = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload_groq, headers=headers_groq)
@@ -180,7 +180,7 @@ async def analyze(request: AnalysisRequest):
             payload = {
                 "model": model,
                 "messages": messages,
-                "temperature": 0.6
+                "temperature": 0
             }
             
             res = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers)

@@ -153,6 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
         currentSkillBadge.innerText = skillName;
         
         const progressTimer = animateProgress(5000);
+        
+        // Auto-scroll to results area
+        progressCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         try {
             let finalInput = input;
