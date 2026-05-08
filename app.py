@@ -187,8 +187,16 @@ async def analyze(request: AnalysisRequest):
         return {"status": "error", "message": str(e)}
 
 @app.get("/")
-async def read_index(): return FileResponse('index.html')
-app.mount("/", StaticFiles(directory="."), name="static")
+async def read_index():
+    return FileResponse("index.html")
+
+@app.get("/style.css")
+async def read_css():
+    return FileResponse("style.css", media_type="text/css")
+
+@app.get("/script.js")
+async def read_js():
+    return FileResponse("script.js", media_type="application/javascript")
 
 if __name__ == "__main__":
     import uvicorn
