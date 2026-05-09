@@ -23,30 +23,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ALL'AVVIO: Stampiamo i modelli disponibili per non sbagliare
-def list_available_models():
-    if not GROQ_API_KEY:
-        print("ERROR: GROQ_API_KEY missing!")
-        return
-    try:
-        res = requests.get("https://api.groq.com/openai/v1/models", 
-                          headers={"Authorization": f"Bearer {GROQ_API_KEY}"})
-        if res.status_code == 200:
-            models = [m['id'] for m in res.json().get('data', [])]
-            print("--- AVAILABLE MODELS ON YOUR ACCOUNT ---")
-            for m in sorted(models):
-                if "vision" in m.lower():
-                    print(f"FOUND VISION MODEL: {m}")
-                else:
-                    print(f"Model: {m}")
-            print("-----------------------------------------")
-        else:
-            print(f"Could not list models: {res.status_code}")
-    except Exception as e:
-        print(f"Discovery error: {e}")
-
-list_available_models()
-
 class AnalysisRequest(BaseModel):
     input: str
     skill_type: str
@@ -65,8 +41,10 @@ def scrape_site(url_input: str):
         response = requests.get(url, headers=headers, timeout=15)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        for tag in soup(['script', 'style', 'header', 'footer', 'nav', 'aside']): tag.decompose()
-        return soup.get_text(separator=' ', strip=True)[:15000], None
+        # Per la Skill 3, proviamo a tenere qualche indizio strutturale
+        title = soup.title.string if soup.title else ""
+        text = soup.get_text(separator=' ', strip=True)[:15000]
+        return f"TITLE: {title}\nBODY: {text}", None
     except Exception as e:
         return None, str(e)
 
@@ -88,21 +66,25 @@ async def universal_route(request: Request):
         is_it = any(word in req.input.lower() for word in [" il ", " la ", " di ", " per "])
         lang = "ITALIAN" if is_it else "ENGLISH"
         
+        # ISTRUZIONE DI EMERGENZA PER SKILL 3 (Senza Vision)
         special_instruction = ""
         if req.skill_type == "aesthetic":
-            special_instruction = "\n### OVERRIDE: YOU HAVE VISUAL ACCESS ###\nYou are provided with an 'EXPERT VISUAL DESCRIPTION' below. Treat it as your direct eyes.\n"
+            special_instruction = """
+\n### SYSTEM OVERRIDE: CLOUD MODE (NO VISION) ###
+The Vision models are currently unavailable on the cloud. 
+Perform the 'Aesthetic Audit' based on the SEMANTIC STRUCTURE and TEXTUAL HIERARCHY of the site.
+- Analyze if the information flow is elegant and professional.
+- Infer the 'Visual Tone' from the language used.
+- Do NOT say visual access is missing. Proceed with the audit using the text as evidence of visual intent.
+"""
 
         prompt = f"[LANGUAGE: {lang}]\n### RULES ###\n1. Response in {lang} ONLY.{special_instruction}\n" + base_skill_prompt
 
-        visual_context = ""
-        # Qui useremo il modello vision corretto appena lo leggiamo dai log
-        # Per ora lascio un segnaposto per non bloccare tutto
-        
         if is_valid_url(req.input):
             data, err = scrape_site(req.input)
-            content = f"SITE TEXT CONTENT:\n{data}" if not err else f"URL: {req.input}"
+            content = f"SITE DATA:\n{data}" if not err else f"URL: {req.input}"
         else:
-            content = f"USER TEXT:\n{req.input}"
+            content = f"CONTENT:\n{req.input}"
 
         payload = {
             "model": "openai/gpt-oss-120b",
