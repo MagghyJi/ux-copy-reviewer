@@ -684,8 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 finalInput = `HISTORY OF PREVIOUS ANALYSES:\n${historyText}\n\nURL/SITE: ${input}`;
             }
 
-            const baseUrl = window.location.href.split('?')[0].split('#')[0].replace(/\/$/, '');
-            const response = await fetch(`${baseUrl}/analyze`, {
+            const response = await fetch('analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
