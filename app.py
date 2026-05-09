@@ -5,7 +5,6 @@ import base64
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from bs4 import BeautifulSoup
@@ -18,9 +17,11 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 app = FastAPI()
 
+# Configurazione CORS (Fondamentale per Hugging Face)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -115,41 +116,10 @@ async def analyze(request: AnalysisRequest):
         if not GROQ_API_KEY:
             return {"status": "error", "message": "GROQ_API_KEY missing"}
 
-        # MULTI-IMAGE VISION CHAIN
-        all_visual_cues = []
-        if request.images:
-            url_ollama = "http://localhost:11434/api/generate"
-            
-            # AGGRESSIVE VISION PROMPT
-            visual_description_prompt = (
-                "You are a Senior UI/UX Auditor. Analyze this image section with surgical precision. "
-                "Identify: 1. EXACT Background color (e.g., pure white, warm beige, dark grey). "
-                "2. Button colors and styles. 3. Typography style (Serif/Sans-serif, weight). "
-                "4. Presence of human faces or specific icons. 5. Visual spacing and breathing room."
-            )
-            
-            for idx, img_b64 in enumerate(request.images):
-                img_data = img_b64.split(",")[1] if "," in img_b64 else img_b64
-                payload_ollama = {
-                    "model": "moondream",
-                    "prompt": visual_description_prompt,
-                    "images": [img_data],
-                    "stream": False
-                }
-                
-                try:
-                    res_v = requests.post(url_ollama, json=payload_ollama, timeout=120)
-                    cue = res_v.json().get("response", "Visual access limited.")
-                    all_visual_cues.append(f"[SCREENSHOT {idx+1}]: {cue}")
-                    
-                    # DEBUG PRINT
-                    print(f"\n--- MOONDREAM ANALYSIS (IMG {idx+1}) ---")
-                    print(cue)
-                    print("-" * 40)
-                except Exception as e:
-                    all_visual_cues.append(f"[SCREENSHOT {idx+1}]: Vision Error ({str(e)})")
-
-        visual_cues_text = "\n\n".join(all_visual_cues)
+        # Vision Cues placeholder for Cloud
+        visual_cues_text = ""
+        if request.images and len(request.images) > 0:
+            visual_cues_text = "Visual cues analysis is currently being processed via text reasoning as vision models are local."
 
         # FINAL ANALYSIS
         combined_content = content_to_analyze
@@ -190,14 +160,6 @@ async def analyze(request: AnalysisRequest):
 async def read_index():
     return FileResponse("index.html")
 
-@app.get("/style.css")
-async def read_css():
-    return FileResponse("style.css", media_type="text/css")
-
-@app.get("/script.js")
-async def read_js():
-    return FileResponse("script.js", media_type="application/javascript")
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=7860)
