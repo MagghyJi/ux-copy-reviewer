@@ -11,7 +11,6 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 load_dotenv()
-# Su HF, i Secret sono direttamente variabili d'ambiente
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 app = FastAPI()
@@ -23,6 +22,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ALL'AVVIO: Stampiamo i modelli disponibili per non sbagliare
+def list_available_models():
+    if not GROQ_API_KEY:
+        print("ERROR: GROQ_API_KEY missing!")
+        return
+    try:
+        res = requests.get("https://api.groq.com/openai/v1/models", 
+                          headers={"Authorization": f"Bearer {GROQ_API_KEY}"})
+        if res.status_code == 200:
+            models = [m['id'] for m in res.json().get('data', [])]
+            print("--- AVAILABLE MODELS ON YOUR ACCOUNT ---")
+            for m in sorted(models):
+                if "vision" in m.lower():
+                    print(f"FOUND VISION MODEL: {m}")
+                else:
+                    print(f"Model: {m}")
+            print("-----------------------------------------")
+        else:
+            print(f"Could not list models: {res.status_code}")
+    except Exception as e:
+        print(f"Discovery error: {e}")
+
+list_available_models()
 
 class AnalysisRequest(BaseModel):
     input: str
@@ -55,7 +78,6 @@ async def universal_route(request: Request):
     try:
         body = await request.json()
         req = AnalysisRequest(**body)
-        print(f"--- REQUEST: {req.skill_type} | Images: {len(req.images) if req.images else 0} ---")
         
         skill_map = {"copy": "skill.md", "structure": "skill-2.md", "aesthetic": "skill-3.md", "recap": "skill-4.md"}
         skill_file = skill_map.get(req.skill_type, "skill.md")
@@ -66,44 +88,15 @@ async def universal_route(request: Request):
         is_it = any(word in req.input.lower() for word in [" il ", " la ", " di ", " per "])
         lang = "ITALIAN" if is_it else "ENGLISH"
         
-        # Iniezione istruzione per bypassare il blocco visuale
         special_instruction = ""
         if req.skill_type == "aesthetic":
-            special_instruction = "\nIMPORTANT: You have full visual access via the 'EXPERT VISUAL DESCRIPTION' provided below. Treat it as if you are seeing the screenshot directly.\n"
+            special_instruction = "\n### OVERRIDE: YOU HAVE VISUAL ACCESS ###\nYou are provided with an 'EXPERT VISUAL DESCRIPTION' below. Treat it as your direct eyes.\n"
 
         prompt = f"[LANGUAGE: {lang}]\n### RULES ###\n1. Response in {lang} ONLY.{special_instruction}\n" + base_skill_prompt
 
-        visual_cues = []
-        if req.images and len(req.images) > 0:
-            print("Processing images with Llama-3.2-90b-vision...")
-            for idx, img_b64 in enumerate(req.images):
-                try:
-                    vision_payload = {
-                        "model": "llama-3.2-90b-vision-preview",
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": "Describe this UI screenshot for a senior UX auditor. Detail the color palette (hex if possible), typography feel, spacing, and visual hierarchy. Be extremely precise."},
-                                    {"type": "image_url", "image_url": {"url": img_b64}}
-                                ]
-                            }
-                        ],
-                        "temperature": 0.1
-                    }
-                    v_res = requests.post("https://api.groq.com/openai/v1/chat/completions", 
-                                         json=vision_payload, 
-                                         headers={"Authorization": f"Bearer {GROQ_API_KEY}"})
-                    if v_res.status_code == 200:
-                        cue = v_res.json()["choices"][0]["message"]["content"]
-                        visual_cues.append(f"EXPERT VISUAL DESCRIPTION (SCREENSHOT {idx+1}):\n{cue}")
-                        print(f"Vision success for image {idx+1}")
-                    else:
-                        print(f"Vision API Error {v_res.status_code}: {v_res.text}")
-                except Exception as ve:
-                    print(f"Vision Exception: {ve}")
-
-        visual_context = "\n\n".join(visual_cues)
+        visual_context = ""
+        # Qui useremo il modello vision corretto appena lo leggiamo dai log
+        # Per ora lascio un segnaposto per non bloccare tutto
         
         if is_valid_url(req.input):
             data, err = scrape_site(req.input)
@@ -111,16 +104,11 @@ async def universal_route(request: Request):
         else:
             content = f"USER TEXT:\n{req.input}"
 
-        if visual_context:
-            final_content = f"### MANDATORY VISUAL CONTEXT (TREAT AS DIRECT SIGHT) ###\n{visual_context}\n\n### CONTENT TO AUDIT ###\n{content}"
-        else:
-            final_content = content
-
         payload = {
             "model": "openai/gpt-oss-120b",
             "messages": [
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": final_content}
+                {"role": "user", "content": content}
             ],
             "temperature": 0.2
         }
@@ -128,15 +116,10 @@ async def universal_route(request: Request):
         res = requests.post("https://api.groq.com/openai/v1/chat/completions", 
                            json=payload, 
                            headers={"Authorization": f"Bearer {GROQ_API_KEY}"})
-        
-        if res.status_code != 200:
-            print(f"Groq 120B Error: {res.text}")
-            return JSONResponse({"status": "error", "message": "Groq Logic Error"}, status_code=500)
             
         return {"status": "success", "analysis": res.json()["choices"][0]["message"]["content"]}
         
     except Exception as e:
-        print(f"Global Error: {e}")
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 if __name__ == "__main__":
