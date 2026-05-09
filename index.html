@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 finalInput = `HISTORY OF PREVIOUS ANALYSES:\n${historyText}\n\nURL/SITE: ${input}`;
             }
 
-            const response = await fetch('analyze', {
+            const response = await fetch(window.location.href, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
