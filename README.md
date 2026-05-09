@@ -9,8 +9,8 @@ pinned: false
 license: mit
 ---
 
-# Skilled UX Reviewer 🚀
-### Professional 4-Skill Diagnostic System for High-Conversion Websites
+# Skilled Reviewer 🚀
+### Eliminating friction. Building trust. Guiding action.
 
 Skilled Reviewer is a modular diagnostic platform designed to analyze and transform website copy, structure, visual design, and overall strategy. Powered by the **GPT-OSS 120B** model on **Groq's LPU™** infrastructure, it delivers professional-grade audits with surgical precision and sub-second reasoning.
 
