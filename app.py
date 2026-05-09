@@ -73,8 +73,17 @@ def scrape_site(url_input: str):
     except Exception as e:
         return None, str(e)
 
+@app.get("/health")
+async def health():
+    return {"status": "ok", "message": "Server is up"}
+
+@app.get("/analyze")
+async def analyze_get():
+    return {"status": "error", "message": "Please use POST method"}
+
 @app.post("/analyze")
 async def analyze(request: AnalysisRequest):
+    print(f"--- ANALYZE REQUEST RECEIVED: {request.skill_type} ---")
     skill_map = {"copy": "skill.md", "structure": "skill-2.md", "aesthetic": "skill-3.md", "recap": "skill-4.md"}
     skill_file = skill_map.get(request.skill_type, "skill.md")
     
