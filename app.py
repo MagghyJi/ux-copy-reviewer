@@ -87,7 +87,7 @@ Perform the 'Aesthetic Audit' based on the SEMANTIC STRUCTURE and TEXTUAL HIERAR
             content = f"CONTENT:\n{req.input}"
 
         payload = {
-            "model": "openai/gpt-oss-120b",
+            "model": "qwen/qwen3.6-27b",
             "messages": [
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": content}
